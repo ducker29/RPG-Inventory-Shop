@@ -1,0 +1,6 @@
+<linker>
+  <assembly fullname="RpgInventoryShop.Application">
+    <type fullname="RpgInventoryShop.Application.SaveData" preserve="all" />
+    <type fullname="RpgInventoryShop.Application.SavedSlot" preserve="all" />
+  </assembly>
+</linker>

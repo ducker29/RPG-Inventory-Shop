@@ -8,16 +8,20 @@ namespace RpgInventoryShop.Domain
         {
             if (maxHp < 1)
                 throw new ArgumentOutOfRangeException(nameof(maxHp));
-            if (currentHp < 0 || currentHp > maxHp)
-                throw new ArgumentOutOfRangeException(nameof(currentHp));
-
             MaxHp = maxHp;
-            CurrentHp = currentHp;
+            RestoreHp(currentHp);
         }
 
         public int MaxHp { get; }
         public int CurrentHp { get; private set; }
         public bool IsFull => CurrentHp == MaxHp;
+
+        public void RestoreHp(int currentHp)
+        {
+            if (currentHp < 0 || currentHp > MaxHp)
+                throw new ArgumentOutOfRangeException(nameof(currentHp));
+            CurrentHp = currentHp;
+        }
 
         public int Heal(int amount)
         {

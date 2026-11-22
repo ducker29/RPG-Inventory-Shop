@@ -15,7 +15,7 @@ namespace RpgInventoryShop.Domain
         public const int SlotCount = 20;
 
         private readonly ItemStack[] slots = new ItemStack[SlotCount];
-        private readonly Dictionary<string, ItemDefinition> definitions = new(StringComparer.Ordinal);
+        private Dictionary<string, ItemDefinition> definitions = new(StringComparer.Ordinal);
 
         public ItemStack GetSlot(int slotIndex) => slots[slotIndex];
 
@@ -27,8 +27,7 @@ namespace RpgInventoryShop.Domain
                 throw new ArgumentNullException(nameof(item));
 
             if (definitions.TryGetValue(item.Id, out ItemDefinition registered) &&
-                (registered.Name != item.Name || registered.BasePrice != item.BasePrice ||
-                 registered.StackLimit != item.StackLimit || registered.Healing != item.Healing))
+                !Matches(registered, item))
                 return InventoryAddResult.ConflictingItemDefinition;
 
             int emptyIndex = -1;
@@ -73,5 +72,59 @@ namespace RpgInventoryShop.Domain
                 : new ItemStack(stack.Item, stack.Quantity - 1);
             return true;
         }
+
+        public bool CanRestoreSlots(IReadOnlyList<(ItemDefinition Item, int Quantity)> restored) =>
+            TryPrepareSlots(restored, out _, out _);
+
+        public bool TryRestoreSlots(IReadOnlyList<(ItemDefinition Item, int Quantity)> restored)
+        {
+            if (!TryPrepareSlots(restored, out var nextSlots, out var nextDefinitions))
+                return false;
+
+            Array.Copy(nextSlots, slots, SlotCount);
+            definitions = nextDefinitions;
+            return true;
+        }
+
+        private bool TryPrepareSlots(
+            IReadOnlyList<(ItemDefinition Item, int Quantity)> restored,
+            out ItemStack[] nextSlots,
+            out Dictionary<string, ItemDefinition> nextDefinitions)
+        {
+            nextSlots = null;
+            nextDefinitions = null;
+            if (restored == null || restored.Count != SlotCount)
+                return false;
+
+            nextSlots = new ItemStack[SlotCount];
+            nextDefinitions = new Dictionary<string, ItemDefinition>(definitions, StringComparer.Ordinal);
+            for (int index = 0; index < SlotCount; index++)
+            {
+                var (item, quantity) = restored[index];
+                if (item == null && quantity == 0)
+                    continue;
+                if (item == null || quantity < 1 || quantity > item.StackLimit)
+                    return false;
+
+                if (nextDefinitions.TryGetValue(item.Id, out ItemDefinition registered))
+                {
+                    if (!Matches(registered, item))
+                        return false;
+                }
+                else
+                {
+                    registered = item;
+                    nextDefinitions.Add(item.Id, item);
+                }
+
+                nextSlots[index] = new ItemStack(registered, quantity);
+            }
+
+            return true;
+        }
+
+        private static bool Matches(ItemDefinition left, ItemDefinition right) =>
+            left.Name == right.Name && left.BasePrice == right.BasePrice &&
+            left.StackLimit == right.StackLimit && left.Healing == right.Healing;
     }
 }

@@ -1,0 +1,6 @@
+{
+    "name": "RpgInventoryShop.UnityAdapters",
+    "references": ["RpgInventoryShop.Domain", "RpgInventoryShop.Application"],
+    "overrideReferences": true,
+    "precompiledReferences": ["System.Text.Json.dll", "System.Memory.dll"]
+}

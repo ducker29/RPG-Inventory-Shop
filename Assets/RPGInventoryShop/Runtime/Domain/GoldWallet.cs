@@ -6,6 +6,11 @@ namespace RpgInventoryShop.Domain
     {
         public GoldWallet(int balance)
         {
+            RestoreBalance(balance);
+        }
+
+        public void RestoreBalance(int balance)
+        {
             if (balance < 0)
                 throw new ArgumentOutOfRangeException(nameof(balance));
 
