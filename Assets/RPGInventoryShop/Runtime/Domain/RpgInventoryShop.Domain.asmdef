@@ -1,0 +1,6 @@
+{
+    "name": "RpgInventoryShop.Domain",
+    "references": [],
+    "noEngineReferences": true,
+    "overrideReferences": true
+}
