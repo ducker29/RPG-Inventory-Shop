@@ -1,0 +1,17 @@
+{
+    "name": "RpgInventoryShop.Composition.Tests",
+    "references": [
+        "RpgInventoryShop.Domain",
+        "RpgInventoryShop.Application",
+        "RpgInventoryShop.UnityAdapters",
+        "RpgInventoryShop.Composition",
+        "Zenject",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": ["Editor"],
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

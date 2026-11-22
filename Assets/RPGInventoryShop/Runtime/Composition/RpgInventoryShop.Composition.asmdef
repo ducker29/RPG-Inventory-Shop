@@ -1,0 +1,10 @@
+{
+    "name": "RpgInventoryShop.Composition",
+    "references": [
+        "RpgInventoryShop.Domain",
+        "RpgInventoryShop.Application",
+        "RpgInventoryShop.UnityAdapters",
+        "Zenject"
+    ],
+    "overrideReferences": true
+}
