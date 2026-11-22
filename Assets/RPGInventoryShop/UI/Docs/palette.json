@@ -1,0 +1,29 @@
+{
+  "name": "Obsidian & Ember",
+  "version": "1.0.0",
+  "colors": {
+    "void": "#101318",
+    "obsidian": "#1B2029",
+    "steel": "#2C3440",
+    "ember": "#C58D59",
+    "ivory": "#F0E6D6",
+    "blood": "#A84950",
+    "sage": "#789889",
+    "mist": "#8D9CB2",
+    "muted_text": "#A6A9B0",
+    "outline": "#596270",
+    "panel_top": "#303845",
+    "panel_bottom": "#171B23",
+    "button_dark": "#202731",
+    "button_ember": "#77452D",
+    "button_sage": "#304B38"
+  },
+  "reference_resolution": [
+    1672,
+    941
+  ],
+  "unity_reference_resolution": [
+    1920,
+    1080
+  ]
+}

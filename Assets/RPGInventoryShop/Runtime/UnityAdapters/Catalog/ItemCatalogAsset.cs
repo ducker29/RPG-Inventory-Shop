@@ -11,6 +11,8 @@ namespace RpgInventoryShop.UnityAdapters
     {
         [SerializeField] private ItemDefinitionAsset[] items = Array.Empty<ItemDefinitionAsset>();
 
+        public IReadOnlyList<ItemDefinitionAsset> Items => items;
+
         public IItemCatalog CreateCatalog()
         {
             var definitions = new Dictionary<string, ItemDefinition>(StringComparer.Ordinal);

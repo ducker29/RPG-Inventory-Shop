@@ -1,0 +1,5 @@
+{
+    "name": "RpgInventoryShop.UI.Runtime",
+    "references": ["UnityEngine.UI"],
+    "overrideReferences": true
+}

@@ -3,6 +3,7 @@
     "references": [
         "RpgInventoryShop.Domain",
         "RpgInventoryShop.Application",
+        "RpgInventoryShop.Presentation",
         "RpgInventoryShop.UnityAdapters",
         "Zenject"
     ],

@@ -1,0 +1,6 @@
+{
+    "name": "RpgInventoryShop.Presentation",
+    "references": ["RpgInventoryShop.Domain", "RpgInventoryShop.Application"],
+    "noEngineReferences": true,
+    "overrideReferences": true
+}
