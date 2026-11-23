@@ -14,6 +14,7 @@ namespace RpgInventoryShop.Presentation.Tests
         private PlayerHealth health;
         private PlayerMana mana;
         private View view;
+        private Store store;
         private InventoryShopPresenter presenter;
 
         [SetUp]
@@ -24,10 +25,11 @@ namespace RpgInventoryShop.Presentation.Tests
             health = new PlayerHealth(100, 50);
             mana = new PlayerMana(100, 40);
             view = new View();
+            store = new Store();
             var catalog = new Catalog();
             presenter = new InventoryShopPresenter(view, inventory, wallet, health, mana,
                 new ShopService(inventory, wallet, catalog), new ConsumeItemService(inventory, health, mana),
-                catalog, new[] { Potion.Id });
+                store, catalog, new[] { Potion.Id });
         }
 
         [TearDown]
@@ -97,7 +99,7 @@ namespace RpgInventoryShop.Presentation.Tests
             var catalog = new Catalog();
             using var emptyMerchant = new InventoryShopPresenter(view, inventory, wallet, health, mana,
                 new ShopService(inventory, wallet, catalog), new ConsumeItemService(inventory, health, mana),
-                catalog, Array.Empty<string>());
+                store, catalog, Array.Empty<string>());
             emptyMerchant.Initialize();
 
             Assert.That(view.Screen.SelectedOffer, Is.Null);
@@ -188,6 +190,61 @@ namespace RpgInventoryShop.Presentation.Tests
             Assert.That(wallet.Balance, Is.EqualTo(78));
         }
 
+        [Test]
+        public void SaveAndLoadRenderFeedbackAndOnlySuccessfulLoadResetsSelection()
+        {
+            inventory.TryAdd(Potion);
+            presenter.Initialize();
+            view.SelectSlot(0);
+
+            view.Save();
+            Assert.That(store.SaveCalls, Is.EqualTo(1));
+            Assert.That(view.Screen.SaveStatusMessage, Is.EqualTo("Game saved."));
+            Assert.That(view.Screen.SelectedSlot, Is.Zero);
+
+            view.Load();
+            Assert.That(view.Screen.SaveStatusMessage, Is.EqualTo("No save found."));
+            Assert.That(view.Screen.SelectedSlot, Is.Zero);
+            Assert.That(view.Screen.ResetMerchantScroll, Is.False);
+
+            store.LoadResult = SaveStatus.RecoveredBackup;
+            store.ApplySnapshot = () =>
+            {
+                wallet.RestoreBalance(7);
+                health.RestoreHp(62);
+                mana.RestoreMana(17);
+                inventory.TryRemoveAt(0);
+            };
+            view.Load();
+            Assert.That(view.Screen.SaveStatusMessage, Is.EqualTo("Game loaded from backup."));
+            Assert.That(view.Screen.SelectedOffer, Is.EqualTo(Potion.Id));
+            Assert.That(view.Screen.SelectedSlot, Is.EqualTo(-1));
+            Assert.That(view.Screen.ResetMerchantScroll, Is.True);
+            Assert.That(view.Screen.Gold, Is.EqualTo(7));
+            Assert.That(view.Screen.Hp, Is.EqualTo(62));
+            Assert.That(view.Screen.Mp, Is.EqualTo(17));
+            Assert.That(view.Screen.Slots[0], Is.Null);
+        }
+
+        private sealed class Store : ISaveStore
+        {
+            public int SaveCalls { get; private set; }
+            public SaveStatus LoadResult { get; set; } = SaveStatus.Missing;
+            public Action ApplySnapshot { get; set; }
+
+            public SaveStatus Save()
+            {
+                SaveCalls++;
+                return SaveStatus.Success;
+            }
+
+            public SaveStatus Load()
+            {
+                ApplySnapshot?.Invoke();
+                return LoadResult;
+            }
+        }
+
         private sealed class Catalog : IItemCatalog
         {
             public bool TryGet(string itemId, out ItemDefinition item)
@@ -204,6 +261,8 @@ namespace RpgInventoryShop.Presentation.Tests
             public event Action BuyRequested;
             public event Action SellRequested;
             public event Action UseRequested;
+            public event Action SaveRequested;
+            public event Action LoadRequested;
             public InventoryShopScreen Screen { get; private set; }
 
             public void Render(InventoryShopScreen screen) => Screen = screen;
@@ -212,6 +271,8 @@ namespace RpgInventoryShop.Presentation.Tests
             public void Buy() => BuyRequested?.Invoke();
             public void Sell() => SellRequested?.Invoke();
             public void Use() => UseRequested?.Invoke();
+            public void Save() => SaveRequested?.Invoke();
+            public void Load() => LoadRequested?.Invoke();
         }
     }
 }

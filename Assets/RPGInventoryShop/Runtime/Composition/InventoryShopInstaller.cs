@@ -39,7 +39,7 @@ namespace RpgInventoryShop.Composition
             Container.Bind<ShopService>().AsSingle();
             Container.Bind<ConsumeItemService>().AsSingle();
             Container.Bind<SaveState>().AsSingle();
-            Container.Bind<JsonSaveStore>()
+            Container.BindInterfacesAndSelfTo<JsonSaveStore>()
                 .FromMethod(context => new JsonSaveStore(context.Container.Resolve<SaveState>()))
                 .AsSingle();
 

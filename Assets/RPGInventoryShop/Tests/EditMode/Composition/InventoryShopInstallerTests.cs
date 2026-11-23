@@ -74,7 +74,7 @@ namespace RpgInventoryShop.Composition.Tests
             Assert.That(container.Resolve<ShopService>(), Is.SameAs(container.Resolve<ShopService>()));
             Assert.That(container.Resolve<ConsumeItemService>(), Is.SameAs(container.Resolve<ConsumeItemService>()));
             Assert.That(container.Resolve<SaveState>(), Is.SameAs(container.Resolve<SaveState>()));
-            Assert.That(container.Resolve<JsonSaveStore>(), Is.SameAs(container.Resolve<JsonSaveStore>()));
+            Assert.That(container.Resolve<JsonSaveStore>(), Is.SameAs(container.Resolve<ISaveStore>()));
             Assert.That(container.Resolve<PlayerMana>().MaxMana, Is.EqualTo(80));
             Assert.That(container.Resolve<PlayerMana>().CurrentMana, Is.EqualTo(25));
             var resolvedCatalog = container.Resolve<IItemCatalog>();

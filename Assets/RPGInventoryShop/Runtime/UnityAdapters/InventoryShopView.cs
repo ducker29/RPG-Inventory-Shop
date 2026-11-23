@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using RpgInventoryShop.Domain;
@@ -20,6 +21,8 @@ namespace RpgInventoryShop.UnityAdapters
         [SerializeField] private RectTransform mpFill;
         [SerializeField] private Image detailIcon;
         [SerializeField] private ActionControls use, buy, sell;
+        [SerializeField] private ActionControls save, load;
+        [SerializeField] private Text saveStatusText;
         [SerializeField] private InventorySlotView[] slotViews;
         [SerializeField] private ScrollRect merchantScroll;
         [SerializeField] private MerchantRowView merchantRowPrefab;
@@ -29,7 +32,9 @@ namespace RpgInventoryShop.UnityAdapters
 
         private readonly Dictionary<string, ItemDefinitionAsset> itemContent = new(StringComparer.Ordinal);
         private readonly List<(ItemDefinition Item, MerchantRowView View)> offers = new();
+        private const float SaveStatusDuration = 5f;
         private InventoryShopPresenter presenter;
+        private Coroutine saveStatusTimer;
         private bool started, controlsBound;
 
         public event Action<int> SlotSelected;
@@ -37,6 +42,8 @@ namespace RpgInventoryShop.UnityAdapters
         public event Action BuyRequested;
         public event Action SellRequested;
         public event Action UseRequested;
+        public event Action SaveRequested;
+        public event Action LoadRequested;
 
         public void ConfigureItems(IEnumerable<ItemDefinitionAsset> items)
         {
@@ -63,7 +70,13 @@ namespace RpgInventoryShop.UnityAdapters
                 presenter?.Initialize();
         }
 
-        private void OnDisable() => presenter?.Dispose();
+        private void OnDisable()
+        {
+            presenter?.Dispose();
+            StopSaveStatusTimer();
+            if (saveStatusText)
+                saveStatusText.text = "";
+        }
 
         private void OnRectTransformDimensionsChange()
         {
@@ -123,9 +136,42 @@ namespace RpgInventoryShop.UnityAdapters
             detailTitle.text = screen.Details?.Name ?? "No item selected";
             detailDescription.text = screen.Details == null ? "" : Description(screen.Details);
             statusText.text = screen.Status;
+            if (!string.IsNullOrEmpty(screen.SaveStatusMessage))
+                ShowSaveStatus(screen.SaveStatusMessage);
+            if (screen.ResetMerchantScroll)
+            {
+                merchantScroll.StopMovement();
+                merchantScroll.verticalNormalizedPosition = 1f;
+            }
             use.SetEnabled(screen.CanUse);
             buy.SetEnabled(screen.CanBuy);
             sell.SetEnabled(screen.CanSell);
+        }
+
+        private void ShowSaveStatus(string message)
+        {
+            StopSaveStatusTimer();
+            if (!isActiveAndEnabled)
+                return;
+
+            saveStatusText.text = message;
+            saveStatusTimer = StartCoroutine(HideSaveStatusAfterDelay());
+        }
+
+        private IEnumerator HideSaveStatusAfterDelay()
+        {
+            yield return new WaitForSecondsRealtime(SaveStatusDuration);
+            saveStatusText.text = "";
+            saveStatusTimer = null;
+        }
+
+        private void StopSaveStatusTimer()
+        {
+            if (saveStatusTimer == null)
+                return;
+
+            StopCoroutine(saveStatusTimer);
+            saveStatusTimer = null;
         }
 
         private void BindControls(ItemDefinition[] items)
@@ -140,6 +186,8 @@ namespace RpgInventoryShop.UnityAdapters
             use.Bind(Theme.Use, () => UseRequested?.Invoke());
             buy.Bind(Theme.Buy, () => BuyRequested?.Invoke());
             sell.Bind(Theme.Sell, () => SellRequested?.Invoke());
+            save.Bind(Theme.Sell, () => SaveRequested?.Invoke(), resetAfterClick: true);
+            load.Bind(Theme.Sell, () => LoadRequested?.Invoke(), resetAfterClick: true);
 
             var content = merchantScroll.content;
             float stride = ((RectTransform)merchantRowPrefab.transform).rect.height + merchantRowSpacing;
@@ -185,11 +233,21 @@ namespace RpgInventoryShop.UnityAdapters
             [SerializeField] private ProceduralButton button;
             [SerializeField] private Text title;
 
-            public void Bind(RoundedGradientStyle idle, Action clicked)
+            public void Bind(RoundedGradientStyle idle, Action clicked, bool resetAfterClick = false)
             {
                 button.SetStyles((RoundedGradientGraphic)button.targetGraphic, idle, Theme.ActionHover(idle),
                     Theme.ActionPressed(idle), Theme.Disabled, title.rectTransform);
-                button.onClick.AddListener(() => clicked());
+                button.onClick.AddListener(() =>
+                {
+                    if (resetAfterClick)
+                    {
+                        var eventSystem = EventSystem.current;
+                        if (eventSystem && eventSystem.currentSelectedGameObject == button.gameObject)
+                            eventSystem.SetSelectedGameObject(null);
+                        button.OnPointerExit(null);
+                    }
+                    clicked();
+                });
             }
 
             public void SetEnabled(bool enabled)

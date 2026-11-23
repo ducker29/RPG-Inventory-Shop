@@ -12,6 +12,8 @@ namespace RpgInventoryShop.Presentation
         event Action BuyRequested;
         event Action SellRequested;
         event Action UseRequested;
+        event Action SaveRequested;
+        event Action LoadRequested;
 
         void Render(InventoryShopScreen screen);
     }
@@ -32,6 +34,8 @@ namespace RpgInventoryShop.Presentation
         public bool CanSell { get; set; }
         public bool CanUse { get; set; }
         public string Status { get; set; }
+        public string SaveStatusMessage { get; set; }
+        public bool ResetMerchantScroll { get; set; }
     }
 
     public sealed class InventoryShopPresenter : IDisposable
@@ -43,12 +47,14 @@ namespace RpgInventoryShop.Presentation
         private readonly PlayerMana mana;
         private readonly ShopService shop;
         private readonly ConsumeItemService consume;
+        private readonly ISaveStore saveStore;
         private readonly ItemDefinition[] offers;
         private (int Slot, ItemDefinition Offer) selection;
         private bool initialized;
 
         public InventoryShopPresenter(IInventoryShopView view, Inventory inventory, GoldWallet wallet,
-            PlayerHealth health, PlayerMana mana, ShopService shop, ConsumeItemService consume, IItemCatalog catalog, string[] offerIds)
+            PlayerHealth health, PlayerMana mana, ShopService shop, ConsumeItemService consume,
+            ISaveStore saveStore, IItemCatalog catalog, string[] offerIds)
         {
             this.view = view;
             this.inventory = inventory;
@@ -57,6 +63,7 @@ namespace RpgInventoryShop.Presentation
             this.mana = mana;
             this.shop = shop;
             this.consume = consume;
+            this.saveStore = saveStore ?? throw new ArgumentNullException(nameof(saveStore));
             offers = offerIds.Select(id => catalog.TryGet(id, out var item) ? item :
                 throw new ArgumentException($"Unknown merchant item '{id}'.", nameof(offerIds))).ToArray();
             selection = (-1, offers.FirstOrDefault());
@@ -74,6 +81,8 @@ namespace RpgInventoryShop.Presentation
             view.BuyRequested += Buy;
             view.SellRequested += Sell;
             view.UseRequested += Use;
+            view.SaveRequested += Save;
+            view.LoadRequested += Load;
             Refresh();
         }
 
@@ -88,6 +97,8 @@ namespace RpgInventoryShop.Presentation
             view.BuyRequested -= Buy;
             view.SellRequested -= Sell;
             view.UseRequested -= Use;
+            view.SaveRequested -= Save;
+            view.LoadRequested -= Load;
         }
 
         private void SelectSlot(int index)
@@ -143,7 +154,38 @@ namespace RpgInventoryShop.Presentation
             });
         }
 
-        private void Refresh(string status = "")
+        private void Save()
+        {
+            SaveStatus result = saveStore.Save();
+            Refresh(saveMessage: result switch
+            {
+                SaveStatus.Success => "Game saved.",
+                SaveStatus.NewerVersion => "Save version is newer.",
+                SaveStatus.IndeterminateVersion => "Cannot verify save version.",
+                _ => "Could not save game."
+            });
+        }
+
+        private void Load()
+        {
+            SaveStatus result = saveStore.Load();
+            bool loaded = result == SaveStatus.Success || result == SaveStatus.RecoveredBackup;
+            if (loaded)
+                selection = (-1, offers.FirstOrDefault());
+
+            Refresh(saveMessage: result switch
+            {
+                SaveStatus.Success => "Game loaded.",
+                SaveStatus.RecoveredBackup => "Game loaded from backup.",
+                SaveStatus.Missing => "No save found.",
+                SaveStatus.NewerVersion => "Save version is newer.",
+                SaveStatus.UnsupportedVersion => "Unsupported save version.",
+                SaveStatus.IoError => "Could not read save.",
+                _ => "Save data is invalid."
+            }, resetMerchantScroll: loaded);
+        }
+
+        private void Refresh(string status = "", string saveMessage = "", bool resetMerchantScroll = false)
         {
             var slots = new ItemStack[Inventory.SlotCount];
             for (int index = 0; index < slots.Length; index++)
@@ -167,7 +209,8 @@ namespace RpgInventoryShop.Presentation
                 SelectedOffer = selectedOffer?.Id, Gold = wallet.Balance, Hp = health.CurrentHp,
                 MaxHp = health.MaxHp, Mp = mana.CurrentMana, MaxMp = mana.MaxMana, CanBuy = canBuy,
                 CanSell = item != null && wallet.CanCredit(item.BasePrice / 2),
-                CanUse = consume.CanUse(selectedSlot), Status = status
+                CanUse = consume.CanUse(selectedSlot), Status = status,
+                SaveStatusMessage = saveMessage, ResetMerchantScroll = resetMerchantScroll
             });
         }
     }

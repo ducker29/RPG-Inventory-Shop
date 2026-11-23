@@ -9,7 +9,7 @@ using RpgInventoryShop.Domain;
 namespace RpgInventoryShop.UnityAdapters
 {
     // Use one store instance per save path in the owning process.
-    public sealed class JsonSaveStore
+    public sealed class JsonSaveStore : ISaveStore
     {
         private const int MaxReadDepth = 256;
         private static readonly JsonSerializerOptions JsonOptions = new()
