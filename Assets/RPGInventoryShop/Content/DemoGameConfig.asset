@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6bc934c42638df4487adc421562ade2, type: 3}
+  m_Name: DemoGameConfig
+  m_EditorClassIdentifier: 
+  itemCatalog: {fileID: 11400000, guid: 626258a11ca8b8e4bb044470b8e2f79b, type: 2}
+  startingInventory: {fileID: 11400000, guid: e84bf9a3d92f7354eaad0d3c1e77c04f, type: 2}
+  startingGold: 5000
+  maxHp: 100
+  startingHp: 30
+  maxMana: 100
+  startingMana: 40

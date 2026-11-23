@@ -12,6 +12,8 @@ namespace RpgInventoryShop.Composition.Tests
     {
         private ItemDefinitionAsset potion;
         private ItemCatalogAsset catalog;
+        private StartingInventoryAsset startingInventory;
+        private GameConfigAsset gameConfig;
         private GameObject installerObject;
 
         [SetUp]
@@ -37,6 +39,17 @@ namespace RpgInventoryShop.Composition.Tests
                 serialized.ApplyModifiedPropertiesWithoutUndo();
             }
 
+            startingInventory = ScriptableObject.CreateInstance<StartingInventoryAsset>();
+            gameConfig = ScriptableObject.CreateInstance<GameConfigAsset>();
+            using (var serialized = new SerializedObject(gameConfig))
+            {
+                serialized.FindProperty("itemCatalog").objectReferenceValue = catalog;
+                serialized.FindProperty("startingInventory").objectReferenceValue = startingInventory;
+                serialized.FindProperty("maxMana").intValue = 80;
+                serialized.FindProperty("startingMana").intValue = 25;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+            }
+
             installerObject = new GameObject();
         }
 
@@ -44,6 +57,8 @@ namespace RpgInventoryShop.Composition.Tests
         public void TearDown()
         {
             Object.DestroyImmediate(installerObject);
+            Object.DestroyImmediate(gameConfig);
+            Object.DestroyImmediate(startingInventory);
             Object.DestroyImmediate(catalog);
             Object.DestroyImmediate(potion);
         }
@@ -60,6 +75,8 @@ namespace RpgInventoryShop.Composition.Tests
             Assert.That(container.Resolve<ConsumeItemService>(), Is.SameAs(container.Resolve<ConsumeItemService>()));
             Assert.That(container.Resolve<SaveState>(), Is.SameAs(container.Resolve<SaveState>()));
             Assert.That(container.Resolve<JsonSaveStore>(), Is.SameAs(container.Resolve<JsonSaveStore>()));
+            Assert.That(container.Resolve<PlayerMana>().MaxMana, Is.EqualTo(80));
+            Assert.That(container.Resolve<PlayerMana>().CurrentMana, Is.EqualTo(25));
             var resolvedCatalog = container.Resolve<IItemCatalog>();
             Assert.That(resolvedCatalog.TryGet("test-potion", out ItemDefinition definition), Is.True);
             Assert.That(definition.Name, Is.EqualTo("Test Potion"));
@@ -178,15 +195,20 @@ namespace RpgInventoryShop.Composition.Tests
         private InventoryShopInstaller ConfigureInstaller(params (ItemDefinitionAsset Item, int Quantity)[] entries)
         {
             var installer = installerObject.AddComponent<InventoryShopInstaller>();
-            using var serialized = new SerializedObject(installer);
-            serialized.FindProperty("itemCatalog").objectReferenceValue = catalog;
-            var startingItems = serialized.FindProperty("startingItems");
+            using (var serializedInstaller = new SerializedObject(installer))
+            {
+                serializedInstaller.FindProperty("gameConfig").objectReferenceValue = gameConfig;
+                serializedInstaller.ApplyModifiedPropertiesWithoutUndo();
+            }
+
+            using var serialized = new SerializedObject(startingInventory);
+            var startingItems = serialized.FindProperty("items");
             startingItems.arraySize = entries.Length;
             for (int index = 0; index < entries.Length; index++)
             {
                 var entry = startingItems.GetArrayElementAtIndex(index);
-                entry.FindPropertyRelative("Item").objectReferenceValue = entries[index].Item;
-                entry.FindPropertyRelative("Quantity").intValue = entries[index].Quantity;
+                entry.FindPropertyRelative("item").objectReferenceValue = entries[index].Item;
+                entry.FindPropertyRelative("quantity").intValue = entries[index].Quantity;
             }
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return installer;
