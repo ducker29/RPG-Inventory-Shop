@@ -26,6 +26,8 @@ namespace RpgInventoryShop.Presentation
         public int Gold { get; set; }
         public int Hp { get; set; }
         public int MaxHp { get; set; }
+        public int Mp { get; set; }
+        public int MaxMp { get; set; }
         public bool CanBuy { get; set; }
         public bool CanSell { get; set; }
         public bool CanUse { get; set; }
@@ -38,6 +40,7 @@ namespace RpgInventoryShop.Presentation
         private readonly Inventory inventory;
         private readonly GoldWallet wallet;
         private readonly PlayerHealth health;
+        private readonly PlayerMana mana;
         private readonly ShopService shop;
         private readonly ConsumeItemService consume;
         private readonly ItemDefinition[] offers;
@@ -45,12 +48,13 @@ namespace RpgInventoryShop.Presentation
         private bool initialized;
 
         public InventoryShopPresenter(IInventoryShopView view, Inventory inventory, GoldWallet wallet,
-            PlayerHealth health, ShopService shop, ConsumeItemService consume, IItemCatalog catalog, string[] offerIds)
+            PlayerHealth health, PlayerMana mana, ShopService shop, ConsumeItemService consume, IItemCatalog catalog, string[] offerIds)
         {
             this.view = view;
             this.inventory = inventory;
             this.wallet = wallet;
             this.health = health;
+            this.mana = mana;
             this.shop = shop;
             this.consume = consume;
             offers = offerIds.Select(id => catalog.TryGet(id, out var item) ? item :
@@ -134,6 +138,7 @@ namespace RpgInventoryShop.Presentation
             {
                 ConsumeItemResult.Success => "",
                 ConsumeItemResult.HealthFull => "Health is already full.",
+                ConsumeItemResult.ManaFull => "Mana is already full.",
                 _ => "Item cannot be used."
             });
         }
@@ -160,9 +165,9 @@ namespace RpgInventoryShop.Presentation
                 Slots = slots, Offers = offers, Details = item ?? selectedOffer,
                 SelectedSlot = selectedSlot,
                 SelectedOffer = selectedOffer?.Id, Gold = wallet.Balance, Hp = health.CurrentHp,
-                MaxHp = health.MaxHp, CanBuy = canBuy,
+                MaxHp = health.MaxHp, Mp = mana.CurrentMana, MaxMp = mana.MaxMana, CanBuy = canBuy,
                 CanSell = item != null && wallet.CanCredit(item.BasePrice / 2),
-                CanUse = item != null && item.Healing > 0 && !health.IsFull, Status = status
+                CanUse = consume.CanUse(selectedSlot), Status = status
             });
         }
     }

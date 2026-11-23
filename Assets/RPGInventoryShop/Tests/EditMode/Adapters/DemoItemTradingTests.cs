@@ -35,7 +35,7 @@ namespace RpgInventoryShop.Adapters.Tests
             Assert.That(shop.Buy(id), Is.EqualTo(ShopResult.Success));
             Assert.That(inventory.GetSlot(0).Quantity, Is.EqualTo(1));
             Assert.That(inventory.GetSlot(1).Quantity, Is.EqualTo(1));
-            Assert.That(new ConsumeItemService(inventory, health).Use(0), Is.EqualTo(ConsumeItemResult.NotConsumable));
+            Assert.That(new ConsumeItemService(inventory, health, new PlayerMana(100, 40)).Use(0), Is.EqualTo(ConsumeItemResult.NotConsumable));
             Assert.That(health.CurrentHp, Is.EqualTo(50));
             Assert.That(shop.Sell(0), Is.EqualTo(ShopResult.Success));
             Assert.That(wallet.Balance, Is.EqualTo(price / 2));
@@ -44,12 +44,12 @@ namespace RpgInventoryShop.Adapters.Tests
             try
             {
                 string file = Path.Combine(path, "inventory.json");
-                var save = new JsonSaveStore(file, new SaveState(inventory, wallet, health, catalog));
+                var save = new JsonSaveStore(file, new SaveState(inventory, wallet, health, new PlayerMana(100, 40), catalog));
                 Assert.That(save.Save(), Is.EqualTo(SaveStatus.Success));
                 var restored = new Inventory();
                 var restoredWallet = new GoldWallet(0);
                 var restoredHealth = new PlayerHealth(100, 100);
-                var load = new JsonSaveStore(file, new SaveState(restored, restoredWallet, restoredHealth, asset.CreateCatalog()));
+                var load = new JsonSaveStore(file, new SaveState(restored, restoredWallet, restoredHealth, new PlayerMana(100, 40), asset.CreateCatalog()));
                 Assert.That(load.Load(), Is.EqualTo(SaveStatus.Success));
                 Assert.That(restored.GetSlot(0), Is.Null);
                 Assert.That(restored.GetSlot(1).Item.Id, Is.EqualTo(id));

@@ -117,17 +117,79 @@ namespace RpgInventoryShop.Composition.Tests
             Assert.That(second.Resolve<PlayerHealth>().CurrentHp, Is.EqualTo(50));
         }
 
-        private DiContainer CreateSession()
+        [Test]
+        public void StartingItemsCombineRepeatedEntriesAndRespectStackLimits()
+        {
+            var other = Object.Instantiate(potion);
+            try
+            {
+                using (var serialized = new SerializedObject(other))
+                {
+                    serialized.FindProperty("itemId").stringValue = "other-potion";
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+                }
+
+                using (var serialized = new SerializedObject(catalog))
+                {
+                    var items = serialized.FindProperty("items");
+                    items.arraySize = 2;
+                    items.GetArrayElementAtIndex(1).objectReferenceValue = other;
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+                }
+
+                var inventory = CreateSession((potion, 2), (other, 1), (potion, 2)).Resolve<Inventory>();
+                Assert.That(inventory.GetSlot(0).Item.Id, Is.EqualTo("test-potion"));
+                Assert.That(inventory.GetSlot(0).Quantity, Is.EqualTo(3));
+                Assert.That(inventory.GetSlot(1).Item.Id, Is.EqualTo("other-potion"));
+                Assert.That(inventory.GetSlot(1).Quantity, Is.EqualTo(1));
+                Assert.That(inventory.GetSlot(2).Item.Id, Is.EqualTo("test-potion"));
+                Assert.That(inventory.GetSlot(2).Quantity, Is.EqualTo(1));
+                Assert.That(inventory.GetSlot(3), Is.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(other);
+            }
+        }
+
+        [TestCase(0, "positive quantity")]
+        [TestCase(61, "inventory capacity")]
+        public void InvalidStartingItemsDoNotBindSessionState(int quantity, string message)
+        {
+            var container = new DiContainer();
+            var installer = ConfigureInstaller((potion, 1), (potion, quantity));
+            container.Inject(installer);
+
+            var error = Assert.Throws<System.InvalidOperationException>(installer.InstallBindings);
+            Assert.That(error.Message, Does.Contain("entry 2").And.Contain(message));
+            Assert.That(container.HasBinding<Inventory>(), Is.False);
+            Assert.That(container.HasBinding<GoldWallet>(), Is.False);
+        }
+
+        private DiContainer CreateSession(params (ItemDefinitionAsset Item, int Quantity)[] entries)
+        {
+            var container = new DiContainer();
+            var installer = ConfigureInstaller(entries);
+            container.Inject(installer);
+            installer.InstallBindings();
+            return container;
+        }
+
+        private InventoryShopInstaller ConfigureInstaller(params (ItemDefinitionAsset Item, int Quantity)[] entries)
         {
             var installer = installerObject.AddComponent<InventoryShopInstaller>();
             using var serialized = new SerializedObject(installer);
             serialized.FindProperty("itemCatalog").objectReferenceValue = catalog;
+            var startingItems = serialized.FindProperty("startingItems");
+            startingItems.arraySize = entries.Length;
+            for (int index = 0; index < entries.Length; index++)
+            {
+                var entry = startingItems.GetArrayElementAtIndex(index);
+                entry.FindPropertyRelative("Item").objectReferenceValue = entries[index].Item;
+                entry.FindPropertyRelative("Quantity").intValue = entries[index].Quantity;
+            }
             serialized.ApplyModifiedPropertiesWithoutUndo();
-
-            var container = new DiContainer();
-            container.Inject(installer);
-            installer.InstallBindings();
-            return container;
+            return installer;
         }
     }
 }

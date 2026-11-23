@@ -4,7 +4,7 @@ namespace RpgInventoryShop.Domain
 {
     public sealed class ItemDefinition
     {
-        public ItemDefinition(string id, string name, int basePrice, int stackLimit, int healing = 0)
+        public ItemDefinition(string id, string name, int basePrice, int stackLimit, int healing = 0, int manaRestoration = 0)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("An item ID is required.", nameof(id));
@@ -17,11 +17,15 @@ namespace RpgInventoryShop.Domain
             if (healing < 0)
                 throw new ArgumentOutOfRangeException(nameof(healing));
 
+            if (manaRestoration < 0)
+                throw new ArgumentOutOfRangeException(nameof(manaRestoration));
+
             Id = id;
             Name = name;
             BasePrice = basePrice;
             StackLimit = stackLimit;
             Healing = healing;
+            ManaRestoration = manaRestoration;
         }
 
         public string Id { get; }
@@ -29,5 +33,6 @@ namespace RpgInventoryShop.Domain
         public int BasePrice { get; }
         public int StackLimit { get; }
         public int Healing { get; }
+        public int ManaRestoration { get; }
     }
 }

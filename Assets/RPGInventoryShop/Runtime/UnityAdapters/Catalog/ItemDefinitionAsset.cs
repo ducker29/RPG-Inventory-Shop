@@ -14,11 +14,12 @@ namespace RpgInventoryShop.UnityAdapters
         [SerializeField] private int basePrice;
         [SerializeField] private int stackLimit = 1;
         [SerializeField] private int healing;
+        [SerializeField] private int manaRestoration;
 
         public string ItemId => itemId;
         public string Description => description;
         public Sprite Icon => icon;
 
-        public ItemDefinition ToDefinition() => new(itemId, displayName, basePrice, stackLimit, healing);
+        public ItemDefinition ToDefinition() => new(itemId, displayName, basePrice, stackLimit, healing, manaRestoration);
     }
 }

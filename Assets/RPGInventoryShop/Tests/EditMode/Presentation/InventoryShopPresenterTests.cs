@@ -12,6 +12,7 @@ namespace RpgInventoryShop.Presentation.Tests
         private Inventory inventory;
         private GoldWallet wallet;
         private PlayerHealth health;
+        private PlayerMana mana;
         private View view;
         private InventoryShopPresenter presenter;
 
@@ -21,10 +22,11 @@ namespace RpgInventoryShop.Presentation.Tests
             inventory = new Inventory();
             wallet = new GoldWallet(100);
             health = new PlayerHealth(100, 50);
+            mana = new PlayerMana(100, 40);
             view = new View();
             var catalog = new Catalog();
-            presenter = new InventoryShopPresenter(view, inventory, wallet, health,
-                new ShopService(inventory, wallet, catalog), new ConsumeItemService(inventory, health),
+            presenter = new InventoryShopPresenter(view, inventory, wallet, health, mana,
+                new ShopService(inventory, wallet, catalog), new ConsumeItemService(inventory, health, mana),
                 catalog, new[] { Potion.Id });
         }
 
@@ -93,8 +95,8 @@ namespace RpgInventoryShop.Presentation.Tests
         {
             inventory.TryAdd(Potion);
             var catalog = new Catalog();
-            using var emptyMerchant = new InventoryShopPresenter(view, inventory, wallet, health,
-                new ShopService(inventory, wallet, catalog), new ConsumeItemService(inventory, health),
+            using var emptyMerchant = new InventoryShopPresenter(view, inventory, wallet, health, mana,
+                new ShopService(inventory, wallet, catalog), new ConsumeItemService(inventory, health, mana),
                 catalog, Array.Empty<string>());
             emptyMerchant.Initialize();
 

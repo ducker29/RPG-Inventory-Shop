@@ -16,6 +16,8 @@ namespace RpgInventoryShop.UnityAdapters
     {
         [SerializeField] private Text hpText, goldText, slotCount, detailTitle, detailDescription, statusText;
         [SerializeField] private RectTransform hpFill, frame;
+        [SerializeField] private Text mpText;
+        [SerializeField] private RectTransform mpFill;
         [SerializeField] private Image detailIcon;
         [SerializeField] private ActionControls use, buy, sell;
         [SerializeField] private InventorySlotView[] slotViews;
@@ -89,6 +91,10 @@ namespace RpgInventoryShop.UnityAdapters
             float ratio = screen.Hp / (float)screen.MaxHp;
             hpFill.gameObject.SetActive(ratio > 0);
             hpFill.anchorMax = new Vector2(ratio, 1);
+            mpText.text = $"MP  {screen.Mp} / {screen.MaxMp}";
+            float manaRatio = screen.Mp / (float)screen.MaxMp;
+            mpFill.gameObject.SetActive(manaRatio > 0);
+            mpFill.anchorMax = new Vector2(manaRatio, 1);
             goldText.text = $"{screen.Gold} Gold";
             slotCount.text = $"{screen.Slots.Count(stack => stack != null)} / {screen.Slots.Length}";
 
@@ -166,6 +172,10 @@ namespace RpgInventoryShop.UnityAdapters
                 !string.IsNullOrWhiteSpace(asset.Description))
                 return asset.Description;
 
+            if (item.Healing > 0 && item.ManaRestoration > 0)
+                return $"Restores {item.Healing} HP and {item.ManaRestoration} MP.";
+            if (item.ManaRestoration > 0)
+                return $"Restores {item.ManaRestoration} MP.";
             return item.Healing > 0 ? $"Restores {item.Healing} HP." : "";
         }
 

@@ -125,6 +125,7 @@ namespace RpgInventoryShop.Domain
 
         private static bool Matches(ItemDefinition left, ItemDefinition right) =>
             left.Name == right.Name && left.BasePrice == right.BasePrice &&
-            left.StackLimit == right.StackLimit && left.Healing == right.Healing;
+            left.StackLimit == right.StackLimit && left.Healing == right.Healing &&
+            left.ManaRestoration == right.ManaRestoration;
     }
 }

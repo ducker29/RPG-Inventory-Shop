@@ -22,13 +22,15 @@ namespace RpgInventoryShop.Application
         private readonly Inventory inventory;
         private readonly GoldWallet wallet;
         private readonly PlayerHealth health;
+        private readonly PlayerMana mana;
         private readonly IItemCatalog catalog;
 
-        public SaveState(Inventory inventory, GoldWallet wallet, PlayerHealth health, IItemCatalog catalog)
+        public SaveState(Inventory inventory, GoldWallet wallet, PlayerHealth health, PlayerMana mana, IItemCatalog catalog)
         {
             this.inventory = inventory ?? throw new ArgumentNullException(nameof(inventory));
             this.wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
             this.health = health ?? throw new ArgumentNullException(nameof(health));
+            this.mana = mana ?? throw new ArgumentNullException(nameof(mana));
             this.catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         }
 
@@ -47,27 +49,29 @@ namespace RpgInventoryShop.Application
                 Version = SaveData.CurrentVersion,
                 Gold = wallet.Balance,
                 Hp = health.CurrentHp,
+                Mp = mana.CurrentMana,
                 Slots = slots
             };
         }
 
         public SaveStatus Restore(SaveData data)
         {
-            SaveStatus status = Resolve(data, out var slots, out int gold, out int hp);
+            SaveStatus status = Resolve(data, out var slots, out int gold, out int hp, out int mp);
             if (status != SaveStatus.Success)
                 return status;
             if (!inventory.TryRestoreSlots(slots))
                 return SaveStatus.InvalidState;
 
-            // Both values were validated before replacing the inventory. The session is synchronous.
+            // All values were validated before replacing the inventory. The session is synchronous.
             wallet.RestoreBalance(gold);
             health.RestoreHp(hp);
+            mana.RestoreMana(mp);
             return SaveStatus.Success;
         }
 
         public SaveStatus Validate(SaveData data)
         {
-            SaveStatus status = Resolve(data, out var slots, out _, out _);
+            SaveStatus status = Resolve(data, out var slots, out _, out _, out _);
             if (status != SaveStatus.Success)
                 return status;
 
@@ -75,18 +79,20 @@ namespace RpgInventoryShop.Application
         }
 
         private SaveStatus Resolve(
-            SaveData data, out (ItemDefinition Item, int Quantity)[] slots, out int gold, out int hp)
+            SaveData data, out (ItemDefinition Item, int Quantity)[] slots, out int gold, out int hp, out int mp)
         {
             slots = null;
             gold = data?.Gold ?? 0;
             hp = data?.Hp ?? 0;
+            mp = data?.Version == SaveData.LegacyVersion ? mana.MaxMana : data?.Mp ?? -1;
             if (data == null)
                 return SaveStatus.Corrupt;
             if (data.Version > SaveData.CurrentVersion)
                 return SaveStatus.NewerVersion;
-            if (data.Version != SaveData.CurrentVersion)
+            if (data.Version != SaveData.CurrentVersion && data.Version != SaveData.LegacyVersion)
                 return SaveStatus.UnsupportedVersion;
-            if (gold < 0 || hp < 0 || hp > health.MaxHp || data.Slots?.Length != Inventory.SlotCount)
+            if (gold < 0 || hp < 0 || hp > health.MaxHp || mp < 0 || mp > mana.MaxMana ||
+                data.Slots?.Length != Inventory.SlotCount)
                 return SaveStatus.InvalidState;
 
             slots = new (ItemDefinition, int)[Inventory.SlotCount];

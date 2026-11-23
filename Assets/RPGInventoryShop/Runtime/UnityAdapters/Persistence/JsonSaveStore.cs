@@ -131,11 +131,14 @@ namespace RpgInventoryShop.UnityAdapters
                 // Check the version before interpreting any fields from the current schema.
                 if (versionNumber > SaveData.CurrentVersion)
                     return SaveStatus.NewerVersion;
-                if (versionNumber != SaveData.CurrentVersion)
+                if (versionNumber != SaveData.CurrentVersion && versionNumber != SaveData.LegacyVersion)
                     return SaveStatus.UnsupportedVersion;
 
                 if (!TryReadInt(root, "gold", out int gold) || !TryReadInt(root, "hp", out int hp) ||
                     !root.TryGetProperty("slots", out JsonElement slots) || slots.ValueKind != JsonValueKind.Array)
+                    return SaveStatus.Corrupt;
+                int mp = 0;
+                if (versionNumber == SaveData.CurrentVersion && !TryReadInt(root, "mp", out mp))
                     return SaveStatus.Corrupt;
                 if (slots.GetArrayLength() != Inventory.SlotCount)
                     return SaveStatus.InvalidState;
@@ -168,7 +171,7 @@ namespace RpgInventoryShop.UnityAdapters
                     index++;
                 }
 
-                data = new SaveData { Version = SaveData.CurrentVersion, Gold = gold, Hp = hp, Slots = savedSlots };
+                data = new SaveData { Version = (int)versionNumber, Gold = gold, Hp = hp, Mp = mp, Slots = savedSlots };
                 return SaveStatus.Success;
             }
             catch (FileNotFoundException) { return SaveStatus.Missing; }

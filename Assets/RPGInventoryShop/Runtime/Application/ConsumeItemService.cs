@@ -9,21 +9,39 @@ namespace RpgInventoryShop.Application
         InvalidSlot,
         EmptySlot,
         NotConsumable,
-        HealthFull
+        HealthFull,
+        ManaFull
     }
 
     public sealed class ConsumeItemService
     {
         private readonly Inventory inventory;
         private readonly PlayerHealth health;
+        private readonly PlayerMana mana;
 
-        public ConsumeItemService(Inventory inventory, PlayerHealth health)
+        public ConsumeItemService(Inventory inventory, PlayerHealth health, PlayerMana mana)
         {
             this.inventory = inventory ?? throw new ArgumentNullException(nameof(inventory));
             this.health = health ?? throw new ArgumentNullException(nameof(health));
+            this.mana = mana ?? throw new ArgumentNullException(nameof(mana));
         }
 
+        public bool CanUse(int slotIndex) => CheckUse(slotIndex) == ConsumeItemResult.Success;
+
         public ConsumeItemResult Use(int slotIndex)
+        {
+            ConsumeItemResult result = CheckUse(slotIndex);
+            if (result != ConsumeItemResult.Success)
+                return result;
+
+            ItemDefinition item = inventory.GetSlot(slotIndex).Item;
+            inventory.TryRemoveAt(slotIndex);
+            health.Heal(item.Healing);
+            mana.Recover(item.ManaRestoration);
+            return ConsumeItemResult.Success;
+        }
+
+        private ConsumeItemResult CheckUse(int slotIndex)
         {
             if (slotIndex < 0 || slotIndex >= Inventory.SlotCount)
                 return ConsumeItemResult.InvalidSlot;
@@ -31,14 +49,12 @@ namespace RpgInventoryShop.Application
             ItemStack stack = inventory.GetSlot(slotIndex);
             if (stack == null)
                 return ConsumeItemResult.EmptySlot;
-            if (stack.Item.Healing == 0)
-                return ConsumeItemResult.NotConsumable;
-            if (health.IsFull)
+            ItemDefinition item = stack.Item;
+            if ((item.Healing > 0 && !health.IsFull) || (item.ManaRestoration > 0 && !mana.IsFull))
+                return ConsumeItemResult.Success;
+            if (item.Healing > 0)
                 return ConsumeItemResult.HealthFull;
-
-            inventory.TryRemoveAt(slotIndex);
-            health.Heal(stack.Item.Healing);
-            return ConsumeItemResult.Success;
+            return item.ManaRestoration > 0 ? ConsumeItemResult.ManaFull : ConsumeItemResult.NotConsumable;
         }
     }
 }

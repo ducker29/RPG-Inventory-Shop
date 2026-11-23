@@ -6,6 +6,27 @@ namespace RpgInventoryShop.Core.Tests
 {
     public sealed class ConsumeItemServiceTests
     {
+        [Test]
+        public void ManaPotionCapsManaAndLeavesTheStackIntactWhenFull()
+        {
+            var inventory = new Inventory();
+            var potion = new ItemDefinition("mana", "Mana Potion", 10, 5, manaRestoration: 40);
+            inventory.TryAdd(potion);
+            inventory.TryAdd(potion);
+            var health = new PlayerHealth(100, 50);
+            var mana = new PlayerMana(100, 75);
+            var service = new ConsumeItemService(inventory, health, mana);
+
+            Assert.That(service.CanUse(0), Is.True);
+            Assert.That(service.Use(0), Is.EqualTo(ConsumeItemResult.Success));
+            Assert.That(mana.CurrentMana, Is.EqualTo(100));
+            Assert.That(health.CurrentHp, Is.EqualTo(50));
+            Assert.That(inventory.GetSlot(0).Quantity, Is.EqualTo(1));
+            Assert.That(service.CanUse(0), Is.False);
+            Assert.That(service.Use(0), Is.EqualTo(ConsumeItemResult.ManaFull));
+            Assert.That(inventory.GetSlot(0).Quantity, Is.EqualTo(1));
+        }
+
         private static readonly ItemDefinition Potion = new ItemDefinition("potion", "Potion", 5, 1, 10);
         private static readonly ItemDefinition Sword = new ItemDefinition("sword", "Sword", 15, 1);
 
@@ -16,7 +37,7 @@ namespace RpgInventoryShop.Core.Tests
             var health = new PlayerHealth(100, 95);
             inventory.TryAdd(Potion);
             inventory.TryAdd(Potion);
-            var service = new ConsumeItemService(inventory, health);
+            var service = new ConsumeItemService(inventory, health, new PlayerMana(100, 40));
 
             Assert.That(service.Use(1), Is.EqualTo(ConsumeItemResult.Success));
             Assert.That(health.CurrentHp, Is.EqualTo(100));
@@ -36,7 +57,7 @@ namespace RpgInventoryShop.Core.Tests
             for (int i = 0; i < original.Length; i++)
                 original[i] = inventory.GetSlot(i);
             var health = new PlayerHealth(100, 50);
-            var service = new ConsumeItemService(inventory, health);
+            var service = new ConsumeItemService(inventory, health, new PlayerMana(100, 40));
 
             Assert.That(original[1].Quantity, Is.EqualTo(2));
             Assert.That(service.Use(1), Is.EqualTo(ConsumeItemResult.Success));
@@ -63,7 +84,7 @@ namespace RpgInventoryShop.Core.Tests
             inventory.TryAdd(Sword);
             ItemStack potion = inventory.GetSlot(0);
             ItemStack sword = inventory.GetSlot(1);
-            var service = new ConsumeItemService(inventory, health);
+            var service = new ConsumeItemService(inventory, health, new PlayerMana(100, 40));
 
             Assert.That(service.Use(slot), Is.EqualTo(expected));
             Assert.That(health.CurrentHp, Is.EqualTo(hp));

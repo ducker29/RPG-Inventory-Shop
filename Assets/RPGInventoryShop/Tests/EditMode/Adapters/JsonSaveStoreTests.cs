@@ -20,6 +20,7 @@ namespace RpgInventoryShop.Adapters.Tests
         private Inventory inventory;
         private GoldWallet wallet;
         private PlayerHealth health;
+        private PlayerMana mana;
         private JsonSaveStore store;
 
         [SetUp]
@@ -33,14 +34,15 @@ namespace RpgInventoryShop.Adapters.Tests
             inventory.TryAdd(Sword);
             wallet = new GoldWallet(10);
             health = new PlayerHealth(100, 35);
-            store = new JsonSaveStore(file, new SaveState(inventory, wallet, health, new TestCatalog()));
+            mana = new PlayerMana(100, 48);
+            store = new JsonSaveStore(file, new SaveState(inventory, wallet, health, mana, new TestCatalog()));
         }
 
         [TearDown]
         public void TearDown() => Directory.Delete(directory, recursive: true);
 
         [Test]
-        public void RoundTripPreservesHolesStackPositionsGoldAndHealth()
+        public void RoundTripPreservesHolesStackPositionsGoldHealthAndMana()
         {
             for (int index = 0; index < 5; index++)
                 inventory.TryAdd(Potion);
@@ -48,7 +50,7 @@ namespace RpgInventoryShop.Adapters.Tests
             Assert.That(store.Save(), Is.EqualTo(SaveStatus.Success));
 
             string json = File.ReadAllText(file);
-            Assert.That(json, Does.Contain("\"version\": 1"));
+            Assert.That(json, Does.Contain("\"version\": 2").And.Contain("\"mp\": 48"));
             Assert.That(json, Does.Contain("\"itemId\": \"potion\""));
             Assert.That(json, Does.Not.Contain("Health Potion").And.Not.Contain("stackLimit"));
 
@@ -57,6 +59,7 @@ namespace RpgInventoryShop.Adapters.Tests
             inventory.TryAdd(Sword);
             wallet.RestoreBalance(99);
             health.RestoreHp(98);
+            mana.RestoreMana(0);
 
             Assert.That(store.Load(), Is.EqualTo(SaveStatus.Success));
             Assert.That(inventory.GetSlot(0), Is.Null);
@@ -66,6 +69,29 @@ namespace RpgInventoryShop.Adapters.Tests
             Assert.That(inventory.GetSlot(19), Is.Null);
             Assert.That(wallet.Balance, Is.EqualTo(10));
             Assert.That(health.CurrentHp, Is.EqualTo(35));
+            Assert.That(mana.CurrentMana, Is.EqualTo(48));
+        }
+
+        [Test]
+        public void LegacySaveWithoutManaRestoresFullManaAndCanBeSavedAsVersionTwo()
+        {
+            File.WriteAllText(file, Snapshot(PotionSlot, "null"));
+            Assert.That(store.Load(), Is.EqualTo(SaveStatus.Success));
+            Assert.That(inventory.GetSlot(0).Item, Is.SameAs(Potion));
+            Assert.That(mana.CurrentMana, Is.EqualTo(mana.MaxMana));
+            Assert.That(store.Save(), Is.EqualTo(SaveStatus.Success));
+            Assert.That(File.ReadAllText(file), Does.Contain("\"version\": 2").And.Contain("\"mp\": 100"));
+        }
+
+        [TestCase("", SaveStatus.Corrupt)]
+        [TestCase(",\"mp\":101", SaveStatus.InvalidState)]
+        public void VersionTwoRequiresValidManaBeforeRestoringAnything(string mp, SaveStatus expected)
+        {
+            string legacy = Snapshot(PotionSlot, "null");
+            File.WriteAllText(file, legacy.Replace("\"version\":1", "\"version\":2" + mp));
+            Assert.That(store.Load(), Is.EqualTo(expected));
+            AssertOriginalState();
+            Assert.That(mana.CurrentMana, Is.EqualTo(48));
         }
 
         [Test]
@@ -119,14 +145,14 @@ namespace RpgInventoryShop.Adapters.Tests
         {
             var conflicting = new ItemDefinition(Sword.Id, Sword.Name, 20, 1);
             var conflictingStore = new JsonSaveStore(
-                file, new SaveState(inventory, wallet, health, new TestCatalog(conflicting)));
+                file, new SaveState(inventory, wallet, health, mana, new TestCatalog(conflicting)));
             File.WriteAllText(file, Snapshot(PotionSlot, SwordSlot));
 
             Assert.That(conflictingStore.Load(), Is.EqualTo(SaveStatus.InvalidState));
             AssertOriginalState();
         }
 
-        [TestCase("{\"version\":2,\"futureSchema\":true}")]
+        [TestCase("{\"version\":3,\"futureSchema\":true}")]
         [TestCase("{\"version\":2147483648}")]
         public void NewerPrimarySurvivesSaveEvenWithAValidBackup(string newer)
         {
@@ -144,7 +170,7 @@ namespace RpgInventoryShop.Adapters.Tests
         public void NewerSaveBeyondDefaultParserDepthSurvivesSave()
         {
             const int depth = 80;
-            string newer = "{\"version\":2,\"futureSchema\":" +
+            string newer = "{\"version\":3,\"futureSchema\":" +
                 new string('[', depth) + "0" + new string(']', depth) + "}";
             File.WriteAllText(file, newer);
 
@@ -187,7 +213,7 @@ namespace RpgInventoryShop.Adapters.Tests
         {
             Assert.That(store.Save(), Is.EqualTo(SaveStatus.Success));
             string original = File.ReadAllText(file);
-            const string newer = "{\"version\":2}";
+            const string newer = "{\"version\":3}";
             File.WriteAllText(file + ".bak", newer);
 
             Assert.That(store.Save(), Is.EqualTo(SaveStatus.NewerVersion));
@@ -217,7 +243,7 @@ namespace RpgInventoryShop.Adapters.Tests
         {
             var conflicting = new ItemDefinition(Sword.Id, Sword.Name, 20, 1);
             var conflictingStore = new JsonSaveStore(
-                file, new SaveState(inventory, wallet, health, new TestCatalog(conflicting)));
+                file, new SaveState(inventory, wallet, health, mana, new TestCatalog(conflicting)));
             File.WriteAllText(file, Snapshot(PotionSlot, SwordSlot));
             string originalBackup = Snapshot(PotionSlot, "null");
             File.WriteAllText(file + ".bak", originalBackup);
