@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: DemoHealthPotion
   m_EditorClassIdentifier: 
   itemId: health-potion
-  displayName: Health Potion
+  displayName: Small Health Potion
+  description: 
   icon: {fileID: -728488644960612398, guid: 9f98a391c7e16ac44820ebd0bd2f6e9e, type: 3}
   basePrice: 10
   stackLimit: 5
-  healing: 25
+  healing: 20

@@ -41,9 +41,7 @@ namespace RpgInventoryShop.Presentation
         private readonly ShopService shop;
         private readonly ConsumeItemService consume;
         private readonly ItemDefinition[] offers;
-        private int selectedSlot = -1;
-        private ItemDefinition selectedOffer;
-        private bool inventoryDetails;
+        private (int Slot, ItemDefinition Offer) selection;
         private bool initialized;
 
         public InventoryShopPresenter(IInventoryShopView view, Inventory inventory, GoldWallet wallet,
@@ -57,7 +55,7 @@ namespace RpgInventoryShop.Presentation
             this.consume = consume;
             offers = offerIds.Select(id => catalog.TryGet(id, out var item) ? item :
                 throw new ArgumentException($"Unknown merchant item '{id}'.", nameof(offerIds))).ToArray();
-            selectedOffer = offers.FirstOrDefault();
+            selection = (-1, offers.FirstOrDefault());
         }
 
         public void Initialize()
@@ -66,11 +64,6 @@ namespace RpgInventoryShop.Presentation
                 return;
 
             initialized = true;
-            if (selectedSlot < 0 && inventory.GetSlot(0) != null)
-            {
-                selectedSlot = 0;
-                inventoryDetails = true;
-            }
 
             view.SlotSelected += SelectSlot;
             view.OfferSelected += SelectOffer;
@@ -97,28 +90,26 @@ namespace RpgInventoryShop.Presentation
         {
             if (index < 0 || index >= Inventory.SlotCount)
                 return;
-            selectedSlot = index;
-            inventoryDetails = true;
+            selection = (index, null);
             Refresh();
         }
 
         private void SelectOffer(string id)
         {
-            selectedOffer = offers.FirstOrDefault(item => item.Id == id);
-            inventoryDetails = false;
+            selection = (-1, offers.FirstOrDefault(item => item.Id == id));
             Refresh();
         }
 
         private void Buy()
         {
-            if (selectedOffer == null)
+            if (selection.Offer == null)
                 return;
 
-            ShopResult result = shop.Buy(selectedOffer.Id);
+            ShopResult result = shop.Buy(selection.Offer.Id);
             Refresh(result switch
             {
                 ShopResult.Success => "",
-                ShopResult.InsufficientGold => "Not enough gold.",
+                ShopResult.InsufficientGold => "",
                 ShopResult.InventoryFull => "Inventory is full.",
                 _ => "Purchase unavailable."
             });
@@ -126,19 +117,19 @@ namespace RpgInventoryShop.Presentation
 
         private void Sell()
         {
-            if (!inventoryDetails || selectedSlot < 0)
+            if (selection.Slot < 0 || inventory.GetSlot(selection.Slot) == null)
                 return;
 
-            ShopResult result = shop.Sell(selectedSlot);
+            ShopResult result = shop.Sell(selection.Slot);
             Refresh(result == ShopResult.Success ? "" : "Sale unavailable.");
         }
 
         private void Use()
         {
-            if (!inventoryDetails || selectedSlot < 0)
+            if (selection.Slot < 0 || inventory.GetSlot(selection.Slot) == null)
                 return;
 
-            ConsumeItemResult result = consume.Use(selectedSlot);
+            ConsumeItemResult result = consume.Use(selection.Slot);
             Refresh(result switch
             {
                 ConsumeItemResult.Success => "",
@@ -153,17 +144,21 @@ namespace RpgInventoryShop.Presentation
             for (int index = 0; index < slots.Length; index++)
                 slots[index] = inventory.GetSlot(index);
 
-            ItemDefinition item = inventoryDetails && selectedSlot >= 0 ? slots[selectedSlot]?.Item : null;
+            var (selectedSlot, selectedOffer) = selection;
+            ItemDefinition item = selectedSlot >= 0 ? slots[selectedSlot]?.Item : null;
             bool hasSpace = selectedOffer != null && slots.Any(stack => stack == null ||
                 (stack.Item.Id == selectedOffer.Id && stack.Quantity < selectedOffer.StackLimit));
-            bool canBuy = selectedOffer != null && wallet.CanSpend(selectedOffer.BasePrice) && hasSpace;
-            if (status.Length == 0 && selectedOffer != null && !canBuy)
-                status = wallet.CanSpend(selectedOffer.BasePrice) ? "Inventory is full." : "Not enough gold.";
+            bool canAffordOffer = selectedOffer != null && wallet.CanSpend(selectedOffer.BasePrice);
+            bool canBuy = canAffordOffer && hasSpace;
+            if (selectedOffer != null && !canAffordOffer)
+                status = "Not enough gold.";
+            else if (status.Length == 0 && canAffordOffer && !hasSpace)
+                status = "Inventory is full.";
 
             view.Render(new InventoryShopScreen
             {
-                Slots = slots, Offers = offers, Details = inventoryDetails ? item : selectedOffer,
-                SelectedSlot = inventoryDetails ? selectedSlot : -1,
+                Slots = slots, Offers = offers, Details = item ?? selectedOffer,
+                SelectedSlot = selectedSlot,
                 SelectedOffer = selectedOffer?.Id, Gold = wallet.Balance, Hp = health.CurrentHp,
                 MaxHp = health.MaxHp, CanBuy = canBuy,
                 CanSell = item != null && wallet.CanCredit(item.BasePrice / 2),

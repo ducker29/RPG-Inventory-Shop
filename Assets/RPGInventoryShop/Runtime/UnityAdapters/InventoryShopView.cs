@@ -52,8 +52,7 @@ namespace RpgInventoryShop.UnityAdapters
                 merchantPreview.SetActive(false);
             OnRectTransformDimensionsChange();
             presenter?.Initialize();
-            if (slotViews.Length > 0 && EventSystem.current)
-                EventSystem.current.SetSelectedGameObject(slotViews[0].Button.gameObject);
+
         }
 
         private void OnEnable()
@@ -76,7 +75,15 @@ namespace RpgInventoryShop.UnityAdapters
         public void Render(InventoryShopScreen screen)
         {
             if (!controlsBound)
+            {
                 BindControls(screen.Offers);
+                if (screen.SelectedOffer != null && EventSystem.current)
+                {
+                    var selected = offers.Find(offer => offer.Item.Id == screen.SelectedOffer).View;
+                    if (selected)
+                        EventSystem.current.SetSelectedGameObject(selected.Button.gameObject);
+                }
+            }
 
             hpText.text = $"HP  {screen.Hp} / {screen.MaxHp}";
             float ratio = screen.Hp / (float)screen.MaxHp;

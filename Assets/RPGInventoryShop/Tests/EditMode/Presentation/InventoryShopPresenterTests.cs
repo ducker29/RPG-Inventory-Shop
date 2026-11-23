@@ -37,13 +37,12 @@ namespace RpgInventoryShop.Presentation.Tests
             inventory.TryAdd(Potion);
             inventory.TryAdd(Potion);
             presenter.Initialize();
-            Assert.That(view.Screen.Details, Is.SameAs(Potion));
-            Assert.That(view.Screen.SelectedSlot, Is.Zero);
-
             view.Buy();
             Assert.That(view.Screen.Gold, Is.EqualTo(89));
             Assert.That(view.Screen.Slots[0].Quantity, Is.EqualTo(3));
+            Assert.That(view.Screen.SelectedOffer, Is.EqualTo(Potion.Id));
 
+            view.SelectSlot(0);
             view.Use();
             view.Use();
             Assert.That(view.Screen.Hp, Is.EqualTo(100));
@@ -57,6 +56,52 @@ namespace RpgInventoryShop.Presentation.Tests
             Assert.That(view.Screen.Slots[0], Is.Null);
             Assert.That(view.Screen.Details, Is.Null);
             Assert.That(view.Screen.CanSell, Is.False);
+            Assert.That(view.Screen.SelectedSlot, Is.Zero);
+        }
+
+        [Test]
+        public void SelectionSwitchesBetweenMerchantAndInventoryAndGuardsActions()
+        {
+            inventory.TryAdd(Potion);
+            presenter.Initialize();
+            Assert.That(view.Screen.SelectedOffer, Is.EqualTo(Potion.Id));
+            Assert.That(view.Screen.SelectedSlot, Is.EqualTo(-1));
+            Assert.That(view.Screen.CanBuy, Is.True);
+            Assert.That(view.Screen.CanSell || view.Screen.CanUse, Is.False);
+
+            view.SelectSlot(0);
+            Assert.That(view.Screen.SelectedOffer, Is.Null);
+            Assert.That(view.Screen.SelectedSlot, Is.Zero);
+            Assert.That(view.Screen.Details, Is.SameAs(Potion));
+            Assert.That(view.Screen.CanBuy, Is.False);
+            Assert.That(view.Screen.CanSell && view.Screen.CanUse, Is.True);
+            view.Buy();
+
+            view.SelectOffer(Potion.Id);
+            Assert.That(view.Screen.SelectedSlot, Is.EqualTo(-1));
+            Assert.That(view.Screen.Details, Is.SameAs(Potion));
+            Assert.That(view.Screen.CanSell || view.Screen.CanUse, Is.False);
+            view.Sell();
+            view.Use();
+            Assert.That(wallet.Balance, Is.EqualTo(100));
+            Assert.That(inventory.GetSlot(0).Quantity, Is.EqualTo(1));
+            Assert.That(health.CurrentHp, Is.EqualTo(50));
+        }
+
+        [Test]
+        public void EmptyMerchantStartsWithoutSelectingAnInventoryItem()
+        {
+            inventory.TryAdd(Potion);
+            var catalog = new Catalog();
+            using var emptyMerchant = new InventoryShopPresenter(view, inventory, wallet, health,
+                new ShopService(inventory, wallet, catalog), new ConsumeItemService(inventory, health),
+                catalog, Array.Empty<string>());
+            emptyMerchant.Initialize();
+
+            Assert.That(view.Screen.SelectedOffer, Is.Null);
+            Assert.That(view.Screen.SelectedSlot, Is.EqualTo(-1));
+            Assert.That(view.Screen.Details, Is.Null);
+            Assert.That(view.Screen.CanBuy || view.Screen.CanSell || view.Screen.CanUse, Is.False);
         }
 
         [Test]
@@ -64,6 +109,8 @@ namespace RpgInventoryShop.Presentation.Tests
         {
             presenter.Initialize();
             view.SelectSlot(7);
+            Assert.That(view.Screen.SelectedOffer, Is.Null);
+            Assert.That(view.Screen.CanBuy, Is.False);
             Assert.That(view.Screen.Details, Is.Null);
             Assert.That(view.Screen.CanSell, Is.False);
             Assert.That(view.Screen.CanUse, Is.False);
@@ -92,6 +139,36 @@ namespace RpgInventoryShop.Presentation.Tests
             Assert.That(view.Screen.Status, Is.EqualTo(status));
             Assert.That(view.Screen.Gold, Is.EqualTo(full ? 100 : 10));
             Assert.That(view.Screen.Slots.Sum(slot => slot?.Quantity ?? 0), Is.EqualTo(full ? 100 : 0));
+        }
+
+        [Test]
+        public void InsufficientGoldMessageFollowsSelectionAndUpdatedBalance()
+        {
+            inventory.TryAdd(Potion);
+            wallet.RestoreBalance(6);
+            presenter.Initialize();
+            Assert.That(view.Screen.Status, Is.EqualTo("Not enough gold."));
+            view.SelectSlot(7);
+            Assert.That(view.Screen.SelectedOffer, Is.Null);
+            Assert.That(view.Screen.CanBuy, Is.False);
+            Assert.That(view.Screen.Status, Is.Empty);
+
+            view.SelectSlot(0);
+            Assert.That(view.Screen.Status, Is.Empty);
+            view.Buy();
+            Assert.That(view.Screen.Status, Is.Empty);
+            view.Sell();
+            Assert.That(view.Screen.Status, Is.Empty);
+
+            view.SelectOffer(Potion.Id);
+            Assert.That(view.Screen.CanBuy, Is.True);
+            Assert.That(view.Screen.Status, Is.Empty);
+            view.Buy();
+            Assert.That(view.Screen.CanBuy, Is.False);
+            Assert.That(view.Screen.Status, Is.EqualTo("Not enough gold."));
+
+            view.SelectOffer("missing");
+            Assert.That(view.Screen.Status, Is.Empty);
         }
 
         [Test]
